@@ -1,0 +1,401 @@
+/* Palette from the cover: four corners for the background, one light accent. */
+@property --vinyl-tl { syntax: "<color>"; inherits: true; initial-value: #4a1a58; }
+@property --vinyl-tr { syntax: "<color>"; inherits: true; initial-value: #2a1033; }
+@property --vinyl-bl { syntax: "<color>"; inherits: true; initial-value: #3b1650; }
+@property --vinyl-br { syntax: "<color>"; inherits: true; initial-value: #5e2466; }
+@property --vinyl-accent { syntax: "<color>"; inherits: true; initial-value: #d77be0; }
+
+/*
+ * Performance: the only things that move every frame are the record (a Web Animation on
+ * transform) and, rarely, the arm and lyrics list (transform transitions). Everything else is
+ * static, so a frame only has to recomposite the record's area — this matters a lot when
+ * Spotify runs without hardware acceleration.
+ */
+
+.vinyl-page {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: calc(100vh - 170px);
+  display: flex;
+  align-items: center;
+  padding: 56px clamp(24px, 4vw, 64px) 40px;
+  color: #fff;
+  border-radius: 8px;
+  background: #0b080d;
+  transition:
+    --vinyl-tl 1s ease, --vinyl-tr 1s ease, --vinyl-bl 1s ease, --vinyl-br 1s ease,
+    --vinyl-accent 1s ease;
+}
+
+/* Soft mesh of the cover's corner colors; no filter: blur on images. */
+.vinyl-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(60% 65% at 8% 6%, var(--vinyl-tl), transparent 72%),
+    radial-gradient(60% 65% at 92% 6%, var(--vinyl-tr), transparent 72%),
+    radial-gradient(60% 65% at 8% 94%, var(--vinyl-bl), transparent 72%),
+    radial-gradient(60% 65% at 92% 94%, var(--vinyl-br), transparent 72%),
+    color-mix(in srgb, var(--vinyl-tl) 30%, #0b080d);
+}
+
+/* Darkens the text side a little so lyrics stay readable on bright covers. */
+.vinyl-page::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 80% at 72% 50%, rgba(0, 0, 0, 0.3), transparent 75%),
+    linear-gradient(180deg, transparent 60%, rgba(0, 0, 0, 0.25));
+}
+
+.vinyl-toolbar {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 3;
+  display: flex;
+  gap: 6px;
+}
+
+.vinyl-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: clamp(24px, 5vw, 80px);
+  align-items: center;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* --- Record deck --- */
+
+.vinyl-deck {
+  position: relative;
+  justify-self: center;
+  width: min(100%, 66vh);
+  aspect-ratio: 1;
+}
+
+.vinyl-disc {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #17131a;
+  box-shadow: 0 0 0 6px rgba(0, 0, 0, 0.35);
+  will-change: transform;
+  backface-visibility: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.vinyl-page.is-scratching .vinyl-disc { cursor: grabbing; }
+
+.vinyl-cover {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.vinyl-cover[hidden] { display: none; }
+
+/* Grooves are symmetric, so they can spin with the disc. */
+.vinyl-disc::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: repeating-radial-gradient(circle at center, transparent 0 2px, rgba(0, 0, 0, 0.09) 2px 3px);
+}
+
+/* Drop shadow and gloss stay still while the disc turns underneath. */
+.vinyl-deck::before,
+.vinyl-deck::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.vinyl-deck::before { box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55); }
+.vinyl-deck::after {
+  z-index: 1;
+  background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.16), transparent 45%);
+}
+
+.vinyl-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: 22%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--vinyl-accent);
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.25);
+}
+.vinyl-hole {
+  width: 12%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #111;
+}
+
+/*
+ * Lite mode (Spotify without hardware acceleration): a classic black record with the cover as
+ * its center label. Only the label (~16% of the disc area) is animated. Grooves and the light
+ * sheen are static — on a real turntable they don't visibly move either.
+ */
+.vinyl-page.is-lite .vinyl-cover { display: none; }
+.vinyl-page.is-lite .vinyl-disc {
+  overflow: visible;
+  will-change: auto;
+  background:
+    conic-gradient(from 20deg, transparent 0 8%, rgba(255, 255, 255, 0.07) 13%, transparent 19% 50%,
+      rgba(255, 255, 255, 0.07) 63%, transparent 69%),
+    radial-gradient(circle, #1c191f 0 21%, #0e0c10 21.5% 96%, #1a171c 97% 100%);
+}
+.vinyl-page.is-lite .vinyl-label {
+  width: 40%;
+  background-color: var(--vinyl-accent);
+  background-image: var(--vinyl-cover-img, none);
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.55), 0 0 0 5px color-mix(in srgb, var(--vinyl-accent) 35%, transparent);
+  will-change: transform;
+}
+.vinyl-page.is-lite .vinyl-hole { width: 7%; }
+
+/* Lifted when paused; while playing it travels from the outer groove toward the label. */
+.vinyl-arm {
+  position: absolute;
+  top: -6%;
+  right: 4%;
+  z-index: 2;
+  width: 14%;
+  height: 72%;
+  transform-origin: 50% 5%;
+  transform: rotate(-14deg);
+  transition: transform 0.8s cubic-bezier(0.3, 0.7, 0.3, 1);
+  will-change: transform;
+  pointer-events: none;
+}
+.vinyl-arm svg { width: 100%; height: 100%; overflow: visible; }
+.vinyl-page.is-playing .vinyl-arm { transform: rotate(calc(8deg + var(--vinyl-arm-p, 0) * 20deg)); }
+
+/* --- Info column --- */
+
+.vinyl-info { min-width: 0; }
+
+.vinyl-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vinyl-artist {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--vinyl-accent);
+}
+
+.vinyl-title {
+  margin: 8px 0 24px;
+  font-size: clamp(40px, 5.5vw, 84px);
+  font-weight: 900;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  color: color-mix(in srgb, var(--vinyl-accent) 22%, #fff);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.vinyl-lyrics-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  opacity: 0.8;
+}
+
+/* Lyrics: a fixed window; the list inside slides (transform only) to center the current line. */
+.vinyl-lyrics {
+  position: relative;
+  height: clamp(150px, 27vh, 280px);
+  margin: 10px 0 24px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 16%, #000 80%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 16%, #000 80%, transparent);
+}
+.vinyl-lyrics-list {
+  position: relative;
+  padding: 1.6em 0 8em;
+  transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: transform;
+}
+.vinyl-line {
+  margin: 0 0 0.55em;
+  font-size: clamp(18px, 1.7vw, 24px);
+  font-weight: 800;
+  line-height: 1.3;
+  opacity: 0.32;
+  transition: opacity 0.3s ease;
+}
+.vinyl-lyrics.is-synced .vinyl-line { cursor: pointer; }
+.vinyl-lyrics.is-synced .vinyl-line:hover { opacity: 0.6; }
+.vinyl-lyrics.is-synced .vinyl-line.is-active { opacity: 1; }
+.vinyl-lyrics.is-list { overflow-y: auto; }
+.vinyl-lyrics.is-list .vinyl-line { font-size: 18px; opacity: 0.85; }
+.vinyl-lyrics.is-empty .vinyl-line { opacity: 0.5; }
+
+.vinyl-progress {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.vinyl-track {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+}
+.vinyl-track::before { content: ""; position: absolute; inset: -8px 0; }
+.vinyl-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--vinyl-accent);
+  transform-origin: left center;
+  transform: scaleX(0);
+}
+
+/* --- Buttons --- */
+
+.vinyl-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  margin: 22px 0 16px;
+}
+.vinyl-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+.vinyl-btn:hover { background: rgba(255, 255, 255, 0.16); }
+.vinyl-btn:active { transform: scale(0.94); }
+.vinyl-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.vinyl-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+.vinyl-btn.is-main {
+  width: 58px;
+  height: 58px;
+  border: none;
+  color: #120a14;
+  background: var(--vinyl-accent);
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--vinyl-accent) 45%, transparent);
+}
+.vinyl-btn.is-main:hover { background: color-mix(in srgb, var(--vinyl-accent) 80%, #fff); }
+.vinyl-btn.is-main svg { width: 22px; height: 22px; }
+
+.vinyl-btn.is-small,
+.vinyl-btn.is-ghost {
+  width: 36px;
+  height: 36px;
+  border-color: transparent;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+}
+.vinyl-btn.is-small:hover,
+.vinyl-btn.is-ghost:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.vinyl-btn.is-on { color: var(--vinyl-accent); }
+.vinyl-btn.is-small.is-on::after {
+  content: "";
+  position: absolute;
+  bottom: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.vinyl-btn.is-like { margin-left: auto; }
+
+.vinyl-upnext {
+  text-align: center;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.85;
+}
+.vinyl-upnext b {
+  margin-right: 8px;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: var(--vinyl-accent);
+}
+.vinyl-upnext[hidden] { display: none; }
+
+/* --- Fullscreen --- */
+
+.vinyl-page:fullscreen,
+.vinyl-page.is-immersive {
+  min-height: 100vh;
+  border-radius: 0;
+  padding-top: 64px;
+}
+.vinyl-page.is-immersive {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+}
+.vinyl-page.is-fullscreen .vinyl-deck { width: min(100%, 76vh); }
+.vinyl-page.is-fullscreen .vinyl-lyrics { height: clamp(180px, 32vh, 380px); }
+
+/* --- Narrow windows --- */
+
+@media (max-width: 900px) {
+  .vinyl-layout { grid-template-columns: 1fr; }
+  .vinyl-deck { width: min(70vw, 360px); }
+  .vinyl-info { text-align: center; }
+  .vinyl-meta { justify-content: center; }
+  .vinyl-btn.is-like { margin-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vinyl-arm, .vinyl-lyrics-list, .vinyl-page { transition: none; }
+}
