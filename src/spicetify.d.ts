@@ -11,6 +11,7 @@ type SpicetifyTrackMetadata = {
   image_xlarge_url?: string;
   image_large_url?: string;
   image_url?: string;
+  image_small_url?: string;
 };
 
 type SpicetifyPlayerEvent = "songchange" | "onplaypause" | "onprogress";
@@ -45,5 +46,4 @@ declare const Spicetify: {
   };
   Platform?: { History?: { push(path: string): void } };
   CosmosAsync: { get(url: string): Promise<unknown> };
-  colorExtractor(uri: string): Promise<Record<string, string>>;
-};
+  colorExtractor(uri: string): Promise<Record<string, string>>;};

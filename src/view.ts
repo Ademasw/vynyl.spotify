@@ -33,6 +33,8 @@ export type View = {
   setShuffle(on: boolean): void;
   setRepeat(mode: RepeatMode): void;
   setFullscreen(on: boolean): void;
+  /** Blurred cover behind everything; null hides it. */
+  setBackdrop(url: string | null): void;
   /** The element that goes fullscreen. */
   readonly page: HTMLElement;
   destroy(): void;
@@ -109,7 +111,12 @@ export function createView(root: HTMLElement, actions: ViewActions, options: Vie
   };
 
   const page = el("div", "vinyl-page", root);
+  // Two backdrop layers so a new cover can cross-fade over the old one.
+  const backdrops = [el("div", "vinyl-backdrop", page), el("div", "vinyl-backdrop", page)];
+  let activeBackdrop = 0;
+  let backdropUrl: string | null = null;
   el("div", "vinyl-bg", page);
+  el("div", "vinyl-grain", page);
 
   const toolbar = el("div", "vinyl-toolbar", page);
   button(toolbar, "Очередь", ICONS.queue, actions.queue, "is-ghost");
@@ -437,6 +444,21 @@ export function createView(root: HTMLElement, actions: ViewActions, options: Vie
       page.classList.toggle("is-fullscreen", value);
       setIcon(fullscreenBtn, value ? ICONS.exitFullscreen : ICONS.fullscreen);
       setLabel(fullscreenBtn, value ? "Выйти из полноэкранного режима (F)" : "Во весь экран (F)");
+    },
+
+    setBackdrop(url) {
+      if (url === backdropUrl) return;
+      backdropUrl = url;
+      const current = backdrops[activeBackdrop];
+      if (!url) {
+        current.classList.remove("is-on");
+        return;
+      }
+      activeBackdrop ^= 1;
+      const next = backdrops[activeBackdrop];
+      next.style.backgroundImage = `url(${JSON.stringify(url)})`;
+      next.classList.add("is-on");
+      current.classList.remove("is-on");
     },
 
     destroy() {

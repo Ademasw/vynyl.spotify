@@ -6,10 +6,18 @@ import { detectLiteMode } from "./gpu.ts";
 import { DEFAULT_PALETTE, extractPalette, paletteFromHex, type Palette } from "./palette.ts";
 
 const SAMPLE_SIZE = 32;
+const BACKDROP_SIZE = 64;
 let sampleCanvas: HTMLCanvasElement | null = null;
+let backdropCanvas: HTMLCanvasElement | null = null;
 
-/** Reads the cover at 32x32 once per track. Rejects if the image can't be read (e.g. no CORS). */
-async function coverPalette(url: string): Promise<Palette> {
+type CoverArt = { palette: Palette; backdrop: string | null };
+
+/**
+ * Reads the cover once per track: a 32x32 sample for the palette and a pre-blurred 64x64 JPEG
+ * for the backdrop. Stretched by CSS it looks like a heavy blur, but costs nothing per frame.
+ * Rejects if the image can't be read (e.g. no CORS).
+ */
+async function coverArt(url: string): Promise<CoverArt> {
   const img = new Image();
   img.crossOrigin = "anonymous";
   img.src = url;
@@ -18,7 +26,22 @@ async function coverPalette(url: string): Promise<Palette> {
   const ctx = sampleCanvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("no 2d context");
   ctx.drawImage(img, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
-  return extractPalette(ctx.getImageData(0, 0, SAMPLE_SIZE, SAMPLE_SIZE).data, SAMPLE_SIZE, SAMPLE_SIZE);
+  const palette = extractPalette(ctx.getImageData(0, 0, SAMPLE_SIZE, SAMPLE_SIZE).data, SAMPLE_SIZE, SAMPLE_SIZE);
+
+  let backdrop: string | null = null;
+  try {
+    backdropCanvas ??= Object.assign(document.createElement("canvas"), { width: BACKDROP_SIZE, height: BACKDROP_SIZE });
+    const b = backdropCanvas.getContext("2d");
+    if (b) {
+      b.filter = "blur(3px)";
+      // Overscan so the blur doesn't pull transparent edges in.
+      b.drawImage(img, -8, -8, BACKDROP_SIZE + 16, BACKDROP_SIZE + 16);
+      backdrop = backdropCanvas.toDataURL("image/jpeg", 0.85);
+    }
+  } catch {
+    backdrop = null;
+  }
+  return { palette, backdrop };
 }
 
 function imageUrl(raw: string | undefined): string | null {
@@ -185,6 +208,7 @@ export function mount(root: HTMLElement): () => void {
     if (!thisUri) {
       view.setLyrics(lyrics);
       view.setPalette(DEFAULT_PALETTE);
+      view.setBackdrop(null);
       return;
     }
     // Keep the previous colors on screen until the new ones arrive, to avoid a flash of purple.
@@ -193,11 +217,24 @@ export function mount(root: HTMLElement): () => void {
     // Results for a previous track are dropped: the user may have skipped while we waited.
     const stillCurrent = () => alive && uri === thisUri;
 
-    // Prefer the real cover pixels; fall back to Spotify's color extractor, then to defaults.
-    const fromSpotify = () => Promise.resolve().then(() => Spicetify.colorExtractor(thisUri)).then(paletteFromHex);
-    (cover ? coverPalette(cover).catch(fromSpotify) : fromSpotify()).then(
-      (p) => stillCurrent() && view.setPalette(p),
-      () => stillCurrent() && view.setPalette(DEFAULT_PALETTE),
+    // Prefer the real cover pixels; fall back to Spotify's color extractor and the small cover
+    // image (a 64px image stretched by CSS is naturally soft), then to defaults.
+    const smallCover = imageUrl(meta.image_small_url ?? meta.image_url) ?? cover;
+    const fromSpotify = (): Promise<CoverArt> =>
+      Promise.resolve()
+        .then(() => Spicetify.colorExtractor(thisUri))
+        .then((c) => ({ palette: paletteFromHex(c), backdrop: smallCover }));
+    (cover ? coverArt(cover).catch(fromSpotify) : fromSpotify()).then(
+      (art) => {
+        if (!stillCurrent()) return;
+        view.setPalette(art.palette);
+        view.setBackdrop(art.backdrop ?? smallCover);
+      },
+      () => {
+        if (!stillCurrent()) return;
+        view.setPalette(DEFAULT_PALETTE);
+        view.setBackdrop(smallCover);
+      },
     );
 
     fetchLyrics(thisUri, (url) => Spicetify.CosmosAsync.get(url)).then((l) => {
