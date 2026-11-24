@@ -17,6 +17,15 @@ try {
     Copy-Item -Force (Join-Path $root "dist\index.js") $target
     Copy-Item -Force (Join-Path $root "manifest.json") $target
 
+    # VinylGlass theme: glass panels over a blurred cover of the current track.
+    $themeDir = Join-Path $env:APPDATA "spicetify\Themes\VinylGlass"
+    New-Item -ItemType Directory -Force -Path $themeDir | Out-Null
+    Copy-Item -Force (Join-Path $root "theme\user.css") $themeDir
+    Copy-Item -Force (Join-Path $root "theme\color.ini") $themeDir
+    Copy-Item -Force (Join-Path $root "dist\theme.js") $themeDir
+    spicetify config current_theme VinylGlass color_scheme Dark inject_css 1 inject_theme_js 1 replace_colors 1
+    if ($LASTEXITCODE -ne 0) { throw "Could not enable the VinylGlass theme" }
+
     $apps = ((spicetify config custom_apps) -join "|") -split "[|\s]+"
     if ($apps -notcontains "vinyl") {
         spicetify config custom_apps vinyl

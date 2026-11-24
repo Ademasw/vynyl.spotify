@@ -1,0 +1,136 @@
+/*
+ * VinylGlass — a light "frosted glass" Spotify theme.
+ *
+ * The window background is a pre-blurred cover of the current track (set by theme.js).
+ * Panels are plain translucent fills with a thin light edge: no backdrop-filter and no live
+ * blur, so the whole client stays smooth even without GPU acceleration.
+ */
+
+:root {
+  --vg-base: #0b0b0e;
+  --vg-glass: rgba(22, 22, 27, 0.56);
+  --vg-glass-solid: #1c1c21;
+  --vg-edge: rgba(255, 255, 255, 0.08);
+  --vg-radius: 12px;
+}
+
+/* --- Window backdrop --- */
+
+body {
+  background-color: var(--vg-base) !important;
+}
+
+.vg-backdrop {
+  position: fixed;
+  inset: -5%;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+  pointer-events: none;
+}
+.vg-backdrop.is-on {
+  opacity: 0.6;
+}
+
+/* Spotify paints these black; let the backdrop through. */
+.Root,
+.Root__top-container,
+.Root__globalNav,
+.Root__now-playing-bar,
+.main-nowPlayingBar-container {
+  background: transparent !important;
+}
+
+/* --- Glass panels --- */
+
+.Root__nav-bar,
+.Root__main-view,
+.Root__right-sidebar {
+  background-color: var(--vg-glass) !important;
+  border: 1px solid var(--vg-edge);
+  border-radius: var(--vg-radius) !important;
+  overflow: hidden;
+}
+
+/*
+ * Surfaces inside the panels: the base is transparent (the panel already provides the glass),
+ * hover / elevated / tinted fills become soft white veils instead of opaque greys.
+ */
+.encore-dark-theme,
+.encore-dark-theme .encore-base-set {
+  --background-base: transparent !important;
+  --background-highlight: rgba(255, 255, 255, 0.07) !important;
+  --background-press: rgba(255, 255, 255, 0.04) !important;
+  --background-elevated-base: rgba(255, 255, 255, 0.06) !important;
+  --background-elevated-highlight: rgba(255, 255, 255, 0.1) !important;
+  --background-elevated-press: rgba(255, 255, 255, 0.04) !important;
+  --background-tinted-base: rgba(255, 255, 255, 0.08) !important;
+  --background-tinted-highlight: rgba(255, 255, 255, 0.12) !important;
+  --background-tinted-press: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Things that float above content must stay solid, or text underneath shows through. */
+.main-contextMenu-menu,
+#context-menu ul,
+[data-tippy-root] [role="menu"],
+[role="dialog"],
+.GenericModal,
+.main-trackList-trackListHeader.main-trackList-trackListHeaderStuck {
+  background-color: var(--vg-glass-solid) !important;
+}
+
+/* Playlist / album header: keep Spotify's cover-colored fade, but softer so the glass shows. */
+.main-entityHeader-backgroundColor,
+.main-actionBarBackground-background {
+  opacity: 0.55;
+}
+
+/*
+ * Home header: Spotify paints a 256px band in the color of a recent playlist, which ends in a
+ * hard edge once the page background is glass. Tone it down and fade it out to nothing.
+ */
+.main-home-homeHeader {
+  opacity: 0.4;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, transparent 100%);
+}
+
+/*
+ * Right panel cards (lyrics preview, about the artist, credits, queue...): Spotify fills them
+ * with a solid cover color, often set inline. Turn them into the same glass as the panels.
+ * Background images (the artist photo) are left alone; only fill colors are replaced.
+ */
+.Root__right-sidebar {
+  --section-background-base: rgba(255, 255, 255, 0.06) !important;
+}
+.Root__right-sidebar .main-nowPlayingView-section,
+.Root__right-sidebar .main-nowPlayingView-section[style],
+.Root__right-sidebar .main-nowPlayingView-section [style*="background-color"] {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+.Root__right-sidebar .main-nowPlayingView-section {
+  border: 1px solid var(--vg-edge);
+}
+
+/* --- Small touches --- */
+
+/* Rounder artwork and cards, like the reference. */
+.main-image-image,
+.main-cardImage-imageWrapper,
+.main-yourLibraryX-rowCover img {
+  border-radius: 8px !important;
+}
+
+/* The search field becomes a glass pill. */
+.main-globalNav-searchInputContainer input,
+.main-globalNav-searchInputContainer form > div {
+  background-color: rgba(255, 255, 255, 0.07) !important;
+}
+
+/* Thin, quiet scrollbars. */
+::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.18) !important;
+  border-radius: 8px;
+}

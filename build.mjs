@@ -13,4 +13,14 @@ await build({
   footer: { js: "function render(){return VinylApp.render();}" },
 });
 
-console.log("built dist/index.js");
+// The VinylGlass theme script (window backdrop from the current cover).
+await build({
+  entryPoints: ["src/theme.ts"],
+  bundle: true,
+  format: "iife",
+  minify: true,
+  target: "es2022",
+  outfile: "dist/theme.js",
+});
+
+console.log("built dist/index.js and dist/theme.js");
